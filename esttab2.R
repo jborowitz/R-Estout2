@@ -89,30 +89,39 @@ if(!any(file.type == supported.file.types)) {
             model.num.string  <- str_pad(paste("\\multicolumn{",num.multicol,'}{c}{',ms1,'}',sep=''),padding,side='both')
             #enclose the numbers in  the multicolumn command, spanning the number of
             #columns necessary if the results are unstacked
-            #write.table(str_pad(c('',unlist(model.num.string)),col.width),sep='&',quote=FALSE,file=filename)
             header.string <-
-                paste(paste(str_pad(c('',model.num.string),col.width),collapse='&'),'\\\\\n',sep='')
-            #write.table(header.string, file=filename,quote=FALSE)
+                paste(str_pad(c('',model.num.string),col.width),collapse='&')
             #Concatenate the headers into one string, separated by & and ended with \\
             ms2 <- str_pad(paste('\\multicolumn{',num.multicol,'}{c}{',model.names,'}',sep=''), padding,side='both')
             model.name.string  <-
-                paste(paste(str_pad(c('',ms2),col.width),collapse='&'),'\\\\\n',sep='')
-            #write.table(model.name.string, file=filename,quote=FALSE,append=TRUE)
+                paste(str_pad(c('',ms2),col.width),collapse='&')
         }
         if(file.type == 'csv'){
             #blanks <- rep('',length(cell.names)-1)
             if(unstack.cells){
                 model.name.string <-
-                    c(NA,matrix(rbind(model.names,matrix(NA,length(cell.names)-1,num.models)),1,length(cell.names)*num.models))
+                    cbind(matrix(NA,1,1),matrix(rbind(model.names,matrix(NA,length(cell.names)-1,num.models)),1,length(cell.names)*num.models))
+                print(model.name.string)
                 # Insert 'NA' elements in the column header for the extra
                 # cells 
                 header.string <-
-                    matrix(rbind(ms1,matrix(NA,length(cell.names)-1,num.models)),1,length(cell.names)*num.models)
+                        cbind(matrix(NA,1,1),matrix(rbind(ms1,matrix(NA,length(cell.names)-1,num.models)),1,length(cell.names)*num.models))
+                print(header.string)
             }else{
             header.string <- matrix(c(NA,ms1))
             model.name.string <- matrix(c(NA,model.names))
             }
             #TODO: create csv headers
+        } 
+        if(file.type == 'txt'){
+            if(unstack.cells) {
+                padding <- col.width * length(cell.names)
+                num.multicol <- length(cell.names)
+            }
+            else{
+                padding <- col.width
+                num.multicol <- 1
+            }
         }
 
         # Work on stats:
@@ -134,9 +143,9 @@ if(!any(file.type == supported.file.types)) {
         for(i in stats.list){
             for(j in model.names){
                 if(!is.null(ccl[['stats',j]][[i]])) stats.numbers[i,j] <-
-                    str_pad(round(ccl[['stats',j]][[i]],round.dec),col.width,side='both')
+                    str_pad(round(ccl[['stats',j]][[i]],round.dec),padding,side='both')
                 else{
-                    stats.numbers[i,j] <- str_pad('',col.width,side="both")        
+                    stats.numbers[i,j] <- str_pad('',padding,side="both")        
                 }
 
             }
@@ -186,9 +195,11 @@ if(!any(file.type == supported.file.types)) {
             twostar <- paste(sig.sym[[2]],sep="")
             onestar <- paste(sig.sym[[1]],sep="")
             line.end <- '\n'
+            na.string <- ' '
         }
         # for TeX
         else if(file.type == 'txt' ) {
+            na.string <- str_pad('',col.width)
             delimiter <- " "
             R2 <- "R^2"
             aR2 <- "adj.R^2"
@@ -200,6 +211,7 @@ if(!any(file.type == supported.file.types)) {
             line.end <- '\n'
         }
         else{
+            na.string <- str_pad('',col.width)
             save.file <- paste(filename,".tex",sep="")
             delimiter <- "&"
             R2 <- "$R^2$"
@@ -364,7 +376,7 @@ if(!any(file.type == supported.file.types)) {
         }
         else {
             # Combine body_numbers table into groups of rows for each coefficient
-            blanks <- matrix(NA,length(cell.names)-1,length(unlist(var.list)))
+            blanks <- matrix(str_pad('',col.width),length(cell.names)-1,length(unlist(var.list)))
             # TODO: change '' to NA here and see if I can avoid duplicate
             # row names
             # Create a matrix of blank strings that will be the row names for the t
@@ -372,7 +384,8 @@ if(!any(file.type == supported.file.types)) {
             renamed.var.list <- var.list
             for(i in names(var.rename)) renamed.var.list[var.list == i] <- var.rename[[i]]
             renamed.var.list <- unlist(lapply(renamed.var.list,str_pad,width=col.width,side='right'))
-            s <- rbind(blanks,renamed.var.list)
+            #s <- rbind(blanks,renamed.var.list)
+            #print(s)
             #table.rows <-
                 #matrix(rbind(unlist(renamed.var.list),blanks),length(unlist(renamed.var.list))*length(cell.names),1)
             table.rows <-
@@ -392,31 +405,36 @@ if(!any(file.type == supported.file.types)) {
         if(file.type == 'tex'){
             if(booktabs == TRUE){
                 toprule <- "\\toprule\n"
-                midrule <- "\\midrule\n"
+                midrule <- "\\midrule"
                 bottomrule <- "\\bottomrule\n"
             } else{
                 toprule <- "\\hline\\hline\n"
-                midrule <- "\\hline\n"
+                midrule <- "\\hline"
                 bottomrule <- "\\hline\\hline\n"
             }
         } else{
             toprule <- ''
-            midrule <- rep('_',col.width*(length(num.models)+1))
+            midrule <- rep('_',col.width*(num.models+1))
+            print(length(num.models))
+            print(col.width)
             print(midrule)
         }
 
         #if(file.type == 'tex')
         # Everything here is a 'write.table' command except for the rule
         # lines
-        na.string <- str_pad('',col.width)
+        currentWarning <- getOption('warn')
+        options(warn=-1)
         cat(toprule,file=filename)
         write.table(header.string,file=filename, append=TRUE,sep=delimiter,
-                    eol=line.end, row.names = FALSE, col.names = FALSE)
-        cat(header.string,file=filename, append=TRUE)
-        cat(model.name.string,file=filename, append=TRUE)
+                    eol=line.end, row.names = FALSE, col.names = FALSE,
+                    quote = FALSE, na=na.string)
+        write.table(model.name.string,file=filename, append=TRUE,sep=delimiter,
+                    eol=line.end, row.names = FALSE, col.names = FALSE,
+                    quote = FALSE, na=na.string)
         cat(midrule,file=filename, sep='',append=TRUE, fill=TRUE)
         write.table(body_strings,sep=delimiter,eol='\\\\\n', na =
-                    na.string, col.names = FALSE,row.names =
+                    na.string, col.names = FALSE, row.names =
         table.rows, quote =
         FALSE,  append=TRUE, file=filename)
         #body.string <- write.table(body_strings,sep=delimiter,eol='\\\\\n', na =
@@ -432,6 +450,7 @@ if(!any(file.type == supported.file.types)) {
                     na.string, row.names =
         str_pad(dimnames(stats.numbers)[[1]],col.width,side='right'), col.names = FALSE, quote = FALSE,file=filename, append=TRUE)
         if(file.type=='tex') cat(bottomrule,file=filename, append=TRUE)
+        options(warn=currentWarning)
         #print(header.string[[1]])
         #print(model.name.string[[1]])
         #write(cat(header.string,col.headers,body_strings,stats.string),file='temp.tex')

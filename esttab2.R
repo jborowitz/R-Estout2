@@ -18,6 +18,18 @@
         # names(coef.func(results))
         to.include <- c(beta.value,se.value,t.value,p.value)
         cell.names <- c('beta','se','t','p')[to.include]
+        fileparts <- strsplit(filename,'\\.')
+file.type <- fileparts[[1]][[2]]
+supported.file.types <- c('tex','txt','csv')
+if(!any(file.type == supported.file.types)) {
+    warning('\'filename\' extension does not match supported file type.  TeX
+            file chosen as default')
+    file.type <- 'tex'
+}
+
+        # filename: the name of the file where the output will be saved.  The
+        # extension to this must be 'tex', 'csv', or 'txt', which will determine
+        # which type of output file is saved.
         #col.headers will override using the dependent variable name 
         #unstack.cells will put each auxiliary element in a separate column
         #N: report the number of observations in each model
@@ -77,19 +89,29 @@
             model.num.string  <- str_pad(paste("\\multicolumn{",num.multicol,'}{c}{',ms1,'}',sep=''),padding,side='both')
             #enclose the numbers in  the multicolumn command, spanning the number of
             #columns necessary if the results are unstacked
-            #write.table(str_pad(c('',unlist(model.num.string)),col.width),sep='&',quote=FALSE,file='test.tex')
+            #write.table(str_pad(c('',unlist(model.num.string)),col.width),sep='&',quote=FALSE,file=filename)
             header.string <-
                 paste(paste(str_pad(c('',model.num.string),col.width),collapse='&'),'\\\\\n',sep='')
-            #write.table(header.string, file='test.tex',quote=FALSE)
+            #write.table(header.string, file=filename,quote=FALSE)
             #Concatenate the headers into one string, separated by & and ended with \\
             ms2 <- str_pad(paste('\\multicolumn{',num.multicol,'}{c}{',model.names,'}',sep=''), padding,side='both')
             model.name.string  <-
                 paste(paste(str_pad(c('',ms2),col.width),collapse='&'),'\\\\\n',sep='')
-            #write.table(model.name.string, file='test.tex',quote=FALSE,append=TRUE)
+            #write.table(model.name.string, file=filename,quote=FALSE,append=TRUE)
         }
         if(file.type == 'csv'){
             #blanks <- rep('',length(cell.names)-1)
-            #header.string <- paste(str_pad(paste('',ms1
+            if(unstack.cells){
+                model.name.string <-
+                    c(NA,matrix(rbind(model.names,matrix(NA,length(cell.names)-1,num.models)),1,length(cell.names)*num.models))
+                # Insert 'NA' elements in the column header for the extra
+                # cells 
+                header.string <-
+                    matrix(rbind(ms1,matrix(NA,length(cell.names)-1,num.models)),1,length(cell.names)*num.models)
+            }else{
+            header.string <- matrix(c(NA,ms1))
+            model.name.string <- matrix(c(NA,model.names))
+            }
             #TODO: create csv headers
         }
 
@@ -154,7 +176,6 @@
 
         # for CSV
         if(file.type == 'csv' ){
-            save.file <- paste(filename,".csv",sep="")
             delimiter <- ","
             R2 <- "R^2"
             aR2 <- "adj.R^2"
@@ -167,7 +188,6 @@
         }
         # for TeX
         else if(file.type == 'txt' ) {
-            save.file <- paste(filename,".csv",sep="")
             delimiter <- " "
             R2 <- "R^2"
             aR2 <- "adj.R^2"
@@ -210,12 +230,11 @@
         # stat taht only applies to some models.
         #########################################################################
         ########## making stars and putting in matrix #### stars depend on p-values ##########
-        table.rows <- matrix(rbind(var.list,matrix(paste(var.list,'aux',sep=''),1,length(var.list))),2*length(var.list),1)
+        #table.rows <- matrix(rbind(var.list,matrix(paste(var.list,'aux',sep=''),1,length(var.list))),2*length(var.list),1)
         # This code creates a vertical matrix of "RT", "", "income", etc...
         # interpsersing blanks with the variable names
 
         # Now, this is going to only print the coefficients portion of the table
-        body_matrix <- matrix()
         body_numbers <-
             array(NA,dim=c(length(var.list),length(model.names),
                            length(cell.names)),dimnames=list(var.list,model.names,cell.names)) 
@@ -316,74 +335,102 @@
                 }
             } # end for model (j)
         }
-        #table.rows <- matrix(rbind(var.list,matrix(paste(var.list,'aux',sep=''),1,length(var.list))),2*length(var.list),1)
+        table.rows <- matrix(rbind(var.list,matrix(paste(var.list,'aux',sep=''),1,length(var.list))),2*length(var.list),1)
         #o2 <-
         #matrix(NA,length(cell.names)*length(var.list),length(model.names),dimnames=list(table.rows,model.names))
+        #print(var.list)
+        #print(model.names)
         if(unstack.cells) {
             #TODO: create the labels for this shape matrix, which basically means
             #putting some blanks in with the model names, analogous to if unstack is
             #fals
-            body_strings <- array(aperm(body_numbers,c(1,3,2)),c(length(var.list),length(cell.names)*length(model.names)),dimnames=list(table.rows,model.names))
+            #print(body_numbers)
+            #print(aperm(body_numbers,c(1,3,2)))
+            print(model.names)
+            model.names <-
+                matrix(rbind(model.names,matrix(NA,length(cell.names)-1,num.models)),1,length(cell.names)*num.models)
+            #model.names <-
+                #cbind(NA,matrix(rbind(model.names,matrix(NA,length(cell.names)-1,num.models)),1,length(cell.names)*num.models))
+            print(model.names)
+            #model.names <-
+                #write.table(model.names,sep=',',row.names=FALSE,
+                            #col.names=FALSE,na='')
+            #print(model.names)
+            table.rows <- var.list
+            body_strings <-
+                array(aperm(body_numbers,c(1,3,2)),c(length(var.list),length(model.names),1),dimnames=list(var.list,model.names)) 
+            print(body_strings)
         }
         else {
             # Combine body_numbers table into groups of rows for each coefficient
-            blanks <- matrix('',length(cell.names)-1,length(unlist(var.list)))
+            blanks <- matrix(NA,length(cell.names)-1,length(unlist(var.list)))
             # TODO: change '' to NA here and see if I can avoid duplicate
             # row names
             # Create a matrix of blank strings that will be the row names for the t
             # stats, standard errors, etc
             renamed.var.list <- var.list
             for(i in names(var.rename)) renamed.var.list[var.list == i] <- var.rename[[i]]
+            renamed.var.list <- unlist(lapply(renamed.var.list,str_pad,width=col.width,side='right'))
+            s <- rbind(blanks,renamed.var.list)
+            #table.rows <-
+                #matrix(rbind(unlist(renamed.var.list),blanks),length(unlist(renamed.var.list))*length(cell.names),1)
             table.rows <-
-                matrix(rbind(unlist(renamed.var.list),blanks),length(unlist(renamed.var.list))*length(cell.names),1)
+                matrix(rbind(renamed.var.list,blanks),length(unlist(renamed.var.list))*length(cell.names),1)
             # Combine the list of variable names with the blanks to make the row names
+            s <- aperm(body_numbers,c(3,1,2),resize=TRUE)
             body_strings <-
-                array(aperm(body_numbers,c(3,1,2),resize=TRUE),c(length(cell.names)*length(var.list),length(model.names),1),dimnames=list(table.rows,model.names))
+                array(s,c(length(cell.names)*length(renamed.var.list),length(model.names),1),dimnames=list(table.rows,model.names))
         }
-        rownames(body_numbers) <- sub('.*aux *$','',rownames(body_numbers))
-        rn <- unlist(lapply(table.rows,str_pad,width=col.width,side='right'))
+        #rownames(body_numbers) <- sub('.*aux *$','',rownames(body_numbers))
+        print('made it here')
+        #print(table.rows)
         #body.string <- write.table(body_strings,sep=delimiter,eol='\\\\\n', na =
         #str_pad('',col.width), row.names = rn, quote = FALSE)
-        #print(rn)
 
         # setting TeX commands for booktabs
-        if(file.type == 'tex'){if(booktabs == TRUE){
-            toprule <- "\\toprule\n"
-            midrule <- "\\midrule\n"
-            bottomrule <- "\\bottomrule\n"
-        }
-        else{
-            toprule <- "\\hline\\hline\n"
-            midrule <- "\\hline\n"
-            bottomrule <- "\\hline\\hline\n"
-        }
-        }else{
-            midrule <- cat(rep('_',col.width*(length(num.models)+1) ,
-                               sep='',fill=TRUE))
+        if(file.type == 'tex'){
+            if(booktabs == TRUE){
+                toprule <- "\\toprule\n"
+                midrule <- "\\midrule\n"
+                bottomrule <- "\\bottomrule\n"
+            } else{
+                toprule <- "\\hline\\hline\n"
+                midrule <- "\\hline\n"
+                bottomrule <- "\\hline\\hline\n"
+            }
+        } else{
+            toprule <- ''
+            midrule <- rep('_',col.width*(length(num.models)+1))
+            print(midrule)
         }
 
-        #print(dimnames(indicator.strings))
-        print(body_strings)
-        cat(toprule,file='test.tex')
-        cat(header.string,file='test.tex', append=TRUE)
-        cat(model.name.string,file='test.tex', append=TRUE)
-        cat(midrule,file='test.tex', append=TRUE)
+        #if(file.type == 'tex')
+        # Everything here is a 'write.table' command except for the rule
+        # lines
+        na.string <- str_pad('',col.width)
+        cat(toprule,file=filename)
+        write.table(header.string,file=filename, append=TRUE,sep=delimiter,
+                    eol=line.end, row.names = FALSE, col.names = FALSE)
+        cat(header.string,file=filename, append=TRUE)
+        cat(model.name.string,file=filename, append=TRUE)
+        cat(midrule,file=filename, sep='',append=TRUE, fill=TRUE)
         write.table(body_strings,sep=delimiter,eol='\\\\\n', na =
-                    str_pad('',col.width), col.names = FALSE,row.names = rn, quote =
-        FALSE,  append=TRUE, file='test.tex')
+                    na.string, col.names = FALSE,row.names =
+        table.rows, quote =
+        FALSE,  append=TRUE, file=filename)
         #body.string <- write.table(body_strings,sep=delimiter,eol='\\\\\n', na =
         #str_pad('',col.width), row.names = rn, quote = FALSE)
         if(!is.null(indicate)){
-            write.table(indicator.strings,sep='&',col.names = FALSE, quote
-                        = FALSE, file='test.tex',append=TRUE, row.names =
+            write.table(indicator.strings,sep=delimiter,col.names = FALSE, quote
+                        = FALSE, file=filename,append=TRUE, row.names =
             str_pad(dimnames(indicator.strings)[[1]],col.width,side='right'),eol='\\\\\n')
         }
-        cat(midrule,file='test.tex', append=TRUE)
+        cat(midrule,file=filename, append=TRUE, sep='', fill=TRUE)
         #cat(stats.string)
-        write.table(stats.numbers,sep='&',eol='\\\\\n', na =
-                    str_pad('',col.width), row.names =
-        str_pad(dimnames(stats.numbers)[[1]],col.width,side='right'), col.names = FALSE, quote = FALSE,file='test.tex', append=TRUE)
-        if(file.type=='tex') cat(bottomrule,file='test.tex', append=TRUE)
+        write.table(stats.numbers,sep=delimiter,eol='\\\\\n', na =
+                    na.string, row.names =
+        str_pad(dimnames(stats.numbers)[[1]],col.width,side='right'), col.names = FALSE, quote = FALSE,file=filename, append=TRUE)
+        if(file.type=='tex') cat(bottomrule,file=filename, append=TRUE)
         #print(header.string[[1]])
         #print(model.name.string[[1]])
         #write(cat(header.string,col.headers,body_strings,stats.string),file='temp.tex')

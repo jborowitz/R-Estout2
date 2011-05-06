@@ -185,6 +185,7 @@ if(!any(file.type == supported.file.types)) {
             threestar <- paste(sig.sym[[3]],sep="")
             twostar <- paste(sig.sym[[2]],sep="")
             onestar <- paste(sig.sym[[1]],sep="")
+            line.end <- '\n'
         }
         # for TeX
         else if(file.type == 'txt' ) {
@@ -192,12 +193,11 @@ if(!any(file.type == supported.file.types)) {
             R2 <- "R^2"
             aR2 <- "adj.R^2"
             N <- "N"
-            om.end <- "\n"
             caption <- paste(caption,om.end,sep="")
             threestar <- paste(sig.sym[[3]],sep="")
             twostar <- paste(sig.sym[[2]],sep="")
             onestar <- paste(sig.sym[[1]],sep="")
-
+            line.end <- '\n'
         }
         else{
             save.file <- paste(filename,".tex",sep="")
@@ -210,6 +210,7 @@ if(!any(file.type == supported.file.types)) {
             threestar <- paste("\\sym{",sig.sym[[3]],"}",sep="")
             twostar <- paste("\\sym{",sig.sym[[2]],"}",sep="")
             onestar <- paste("\\sym{",sig.sym[[1]],"}",sep="")
+            line.end <- '\\\\\n'
         }
         ######### creating a vector of variable names ##########################
         if(is.null(var.order) == FALSE){

@@ -79,11 +79,13 @@ if(!any(file.type == supported.file.types)) {
         if(file.type == 'tex'){
             # Start working on header strings
             if(unstack.cells) {
-                padding <- col.width * length(cell.names)
+                single.column.padding <- col.width
+                padding <- (col.width + 1) * length(cell.names) - 1
                 num.multicol <- length(cell.names)
             }
             else{
                 padding <- col.width
+                single.column.padding <- col.width
                 num.multicol <- 1
             }
             model.num.string  <- str_pad(paste("\\multicolumn{",num.multicol,'}{c}{',ms1,'}',sep=''),padding,side='both')
@@ -99,6 +101,9 @@ if(!any(file.type == supported.file.types)) {
         if(file.type == 'csv'){
             #blanks <- rep('',length(cell.names)-1)
             if(unstack.cells){
+                padding <- col.width * length(cell.names)
+                padding <- 0
+                single.column.padding <- 0
                 model.name.string <-
                     cbind(matrix(NA,1,1),matrix(rbind(model.names,matrix(NA,length(cell.names)-1,num.models)),1,length(cell.names)*num.models))
                 print(model.name.string)
@@ -108,20 +113,35 @@ if(!any(file.type == supported.file.types)) {
                         cbind(matrix(NA,1,1),matrix(rbind(ms1,matrix(NA,length(cell.names)-1,num.models)),1,length(cell.names)*num.models))
                 print(header.string)
             }else{
-            header.string <- matrix(c(NA,ms1))
-            model.name.string <- matrix(c(NA,model.names))
+                padding <- col.width
+                padding <- 0
+                single.column.padding <- 0
+                header.string <- matrix(c(NA,ms1))
+                model.name.string <- matrix(c(NA,model.names))
             }
             #TODO: create csv headers
         } 
         if(file.type == 'txt'){
             if(unstack.cells) {
-                padding <- col.width * length(cell.names)
+                single.column.padding <- col.width
+                padding <- (col.width + 1) * length(cell.names) - 1
                 num.multicol <- length(cell.names)
             }
             else{
                 padding <- col.width
+                single.column.padding <- col.width
                 num.multicol <- 1
             }
+            model.num.string  <- str_pad(ms1,padding,side='both')
+            print(model.num.string)
+            #enclose the numbers in  the multicolumn command, spanning the number of
+            #columns necessary if the results are unstacked
+            header.string <-
+                paste(c(str_pad('',col.width,side='both'),model.num.string), collapse=' ')
+            #Concatenate the headers into one string, separated by & and ended with \\
+            ms2 <- str_pad(model.names, padding,side='both')
+            model.name.string  <-
+                paste(str_pad(c('',ms2),col.width),collapse=' ')
         }
 
         # Work on stats:
@@ -136,20 +156,41 @@ if(!any(file.type == supported.file.types)) {
                 c(ccl[['stats',i]],N=length(summary(ccl[['results',i]])[['residuals']]))
         }
         stats.list <- c(stats.list,'R2','N')
-
-
         stats.numbers <- 
             array(NA,dim=c(length(stats.list),length(model.names)),dimnames=list(stats.list,model.names)) 
         for(i in stats.list){
             for(j in model.names){
-                if(!is.null(ccl[['stats',j]][[i]])) stats.numbers[i,j] <-
-                    str_pad(round(ccl[['stats',j]][[i]],round.dec),padding,side='both')
-                else{
-                    stats.numbers[i,j] <- str_pad('',padding,side="both")        
+                if(!is.null(ccl[['stats',j]][[i]])) {
+                    stat <- ccl[['stats',j]][[i]]
+                    if(file.type == 'tex' & unstack.cells) {
+                        stat <-
+                            str_pad(paste('\\multicolumn{',num.multicol,'}{c}{',round(stat,round.dec),'}',sep=''),
+                                    padding,side='both')
+                        stats.numbers[i,j] <- stat
+                    }
+                    else{
+                        stats.numbers[i,j] <- str_pad(round(ccl[['stats',j]][[i]],round.dec),padding,side='both')
+                    }
                 }
-
+                else{
+                    stat <- ''
+                    if(file.type == 'tex' & unstack.cells){
+                        stat <-
+                            str_pad(paste('\\multicolumn{',num.multicol,'}{c}{ }',sep=''),
+                                    padding,side='both')
+                    }
+                    stats.numbers[i,j] <- str_pad(stat,padding,side="both")        
+                }
             }
         }
+        #if(file.type == 'tex'){
+            #if(unstack.cells){
+                #ms2 <-
+                    #str_pad(paste('\\multicolumn{',num.multicol,'}{c}{',stats.numbers,'}',sep=''), padding,side='both')
+                #model.name.string  <-
+                    #paste(str_pad(c('',ms2),col.width),collapse='&')
+            #}
+        #}
 
         # catching use if empty ccl
         if(is.matrix(ccl)){}else{return("No values stored. I think you need to store some models first.")}
@@ -204,11 +245,11 @@ if(!any(file.type == supported.file.types)) {
             R2 <- "R^2"
             aR2 <- "adj.R^2"
             N <- "N"
-            caption <- paste(caption,om.end,sep="")
             threestar <- paste(sig.sym[[3]],sep="")
             twostar <- paste(sig.sym[[2]],sep="")
             onestar <- paste(sig.sym[[1]],sep="")
             line.end <- '\n'
+            caption <- paste(caption,line.end,sep="")
         }
         else{
             na.string <- str_pad('',col.width)
@@ -267,43 +308,43 @@ if(!any(file.type == supported.file.types)) {
                     p <- 2*pt(-1*abs(tstat),res1[['df.residual']])
                     if ( p < sig.levels[3] ) {
                         sigs <-
-                            str_pad(paste(round(coefficient,round.dec),threestar,sep=""),col.width,side="both") #coefficient
+                            str_pad(paste(round(coefficient,round.dec),threestar,sep=""),single.column.padding,side="both") #coefficient
                         std_err <-
-                            str_pad(paste("(",se,")",sep=""),col.width,side="both")        #std.err
+                            str_pad(paste("(",se,")",sep=""),single.column.padding,side="both")        #std.err
                         t_val <-
-                            str_pad(paste("[",round(tstat,round.dec),"]",sep=""),col.width,side="both")          #t-value
+                            str_pad(paste("[",round(tstat,round.dec),"]",sep=""),single.column.padding,side="both")          #t-value
                         p_val <-
-                            str_pad(paste("[",round(p,round.dec),"]",sep=""),col.width,side="both")          #p-value
+                            str_pad(paste("[",round(p,round.dec),"]",sep=""),single.column.padding,side="both")          #p-value
                     }
                     else if( p < sig.levels[2] ) {
                         sigs <-
-                            str_pad(paste(round(coefficient,round.dec),twostar,sep=""),col.width,side="both")
+                            str_pad(paste(round(coefficient,round.dec),twostar,sep=""),single.column.padding,side="both")
                         std_err <-
-                            str_pad(paste("(",round(se,round.dec),")",sep=""),col.width,side="both")
+                            str_pad(paste("(",round(se,round.dec),")",sep=""),single.column.padding,side="both")
                         t_val <-
-                            str_pad(paste("[",round(tstat,round.dec),"]",sep=""),col.width,side="both")
+                            str_pad(paste("[",round(tstat,round.dec),"]",sep=""),single.column.padding,side="both")
                         p_val <-
-                            str_pad(paste("[",round(p,round.dec),"]",sep=""),col.width,side="both")          #p-value
+                            str_pad(paste("[",round(p,round.dec),"]",sep=""),single.column.padding,side="both")          #p-value
                     }
                     else if( p < sig.levels[1] ) {
                         sigs <-
-                            str_pad(paste(round(coefficient,round.dec),onestar,sep=""),col.width,side="both")
+                            str_pad(paste(round(coefficient,round.dec),onestar,sep=""),single.column.padding,side="both")
                         std_err <-
-                            str_pad(paste("(",round(se,round.dec),")",sep=""),col.width,side="both")
+                            str_pad(paste("(",round(se,round.dec),")",sep=""),single.column.padding,side="both")
                         t_val <-
-                            str_pad(paste("[",round(tstat,round.dec),"]",sep=""),col.width,side="both")
+                            str_pad(paste("[",round(tstat,round.dec),"]",sep=""),single.column.padding,side="both")
                         p_val <-
-                            str_pad(paste("[",round(p,round.dec),"]",sep=""),col.width,side="both")          #p-value
+                            str_pad(paste("[",round(p,round.dec),"]",sep=""),single.column.padding,side="both")          #p-value
                     }
                     else{
                         sigs <-
-                            str_pad(paste(round(coefficient,round.dec),"",sep=""),col.width,side="both")
+                            str_pad(paste(round(coefficient,round.dec),"",sep=""),single.column.padding,side="both")
                         std_err <-
-                            str_pad(paste("(",round(se,round.dec),")",sep=""),col.width,side="both")
+                            str_pad(paste("(",round(se,round.dec),")",sep=""),single.column.padding,side="both")
                         t_val <-
-                            str_pad(paste("[",round(tstat,round.dec),"]",sep=""),col.width,side="both")
+                            str_pad(paste("[",round(tstat,round.dec),"]",sep=""),single.column.padding,side="both")
                         p_val <-
-                            str_pad(paste("[",round(p,round.dec),"]",sep=""),col.width,side="both")          #p-value
+                            str_pad(paste("[",round(p,round.dec),"]",sep=""),single.column.padding,side="both")          #p-value
                     }
                     #k <- 1
                     #while(var.list[k] != coef.info[[1]]){
@@ -329,21 +370,33 @@ if(!any(file.type == supported.file.types)) {
                     # If there isn't a coefficient for this row, this is set to a
                     # blank string
                     for(i in cell.names){
-                        body_numbers[k,j,i] <- str_pad('',col.width,side="both")        
+                        body_numbers[k,j,i] <-
+                            str_pad('',single.column.padding,side="both")        
                     }
                 }
             }
             
             if(!is.null(indicate)){
                 for(i in names(indicate)){
-                    s <- paste('^',indicate[[i]],'$',sep='')
-                    d <- grepl(s,names(coef(ccl[['results',j]])))
+                    d <- grepl(paste('^',indicate[[i]],'$',sep=''),names(coef(ccl[['results',j]])))
                     if(any(d)) {
-                        indicator.strings[[i,j]] = str_pad(indicator.yes,
-                                                           col.width,side='both')
+                        if(file.type == 'tex' & unstack.cells)
+                            indicator.strings[[i,j]]  <-
+                                str_pad(paste("\\multicolumn{",num.multicol,'}{c}{',indicator.yes,'}',sep=''),padding,side='both')
+                        else indicator.strings[[i,j]] = str_pad(indicator.yes,
+                                                                padding,side='both')
+                        if(file.type == 'csv'){
+
+                        }
                     } else{
-                        indicator.strings[[i,j]] = str_pad(indicator.no,
-                                                           col.width,side='both')
+                        if(file.type == 'tex' & unstack.cells){
+                            indicator.strings[[i,j]]  <-
+                                str_pad(paste("\\multicolumn{",num.multicol,'}{c}{',indicator.no,'}',sep=''),padding,side='both')
+                        }
+                        else{
+                            indicator.strings[[i,j]] = str_pad(indicator.no,
+                                                               padding,side='both')
+                        }
                     }
                 }
             } # end for model (j)
@@ -361,7 +414,8 @@ if(!any(file.type == supported.file.types)) {
             #print(aperm(body_numbers,c(1,3,2)))
             renamed.var.list <- var.list
             for(i in names(var.rename)) renamed.var.list[var.list == i] <- var.rename[[i]]
-            renamed.var.list <- unlist(lapply(renamed.var.list,str_pad,width=col.width,side='right'))
+            renamed.var.list <-
+                unlist(lapply(renamed.var.list,str_pad,width=single.column.padding,side='right'))
             print(renamed.var.list)
             nm <-
                 matrix(rbind(model.names,matrix(NA,length(cell.names)-1,length(model.names))),1,length(cell.names)*length(model.names))
@@ -380,14 +434,15 @@ if(!any(file.type == supported.file.types)) {
         }
         else {
             # Combine body_numbers table into groups of rows for each coefficient
-            blanks <- matrix(str_pad('',col.width),length(cell.names)-1,length(unlist(var.list)))
+            blanks <- matrix(str_pad('',single.column.padding),length(cell.names)-1,length(unlist(var.list)))
             # TODO: change '' to NA here and see if I can avoid duplicate
             # row names
             # Create a matrix of blank strings that will be the row names for the t
             # stats, standard errors, etc
             renamed.var.list <- var.list
             for(i in names(var.rename)) renamed.var.list[var.list == i] <- var.rename[[i]]
-            renamed.var.list <- unlist(lapply(renamed.var.list,str_pad,width=col.width,side='right'))
+            renamed.var.list <-
+                unlist(lapply(renamed.var.list,str_pad,width=padding,side='right'))
             #s <- rbind(blanks,renamed.var.list)
             #print(s)
             #table.rows <-
@@ -416,12 +471,24 @@ if(!any(file.type == supported.file.types)) {
                 midrule <- "\\hline"
                 bottomrule <- "\\hline\\hline\n"
             }
-        } else{
+        } 
+        if(file.type == 'csv'){
             toprule <- ''
-            midrule <- rep('_',col.width*(num.models+1))
-            print(length(num.models))
-            print(col.width)
-            print(midrule)
+            midrule <- ''
+            bottomrule <- ''
+        }
+        if(file.type == 'txt'){
+            toprule <- ''
+            if(unstack.cells) {
+                midrule <- rep('_',padding*(num.models+1)*length(cell.names))
+                print(length(midrule))
+            }
+            else {
+                midrule <- rep('_',padding*(num.models+1))
+            }
+            #print(length(num.models))
+            #print(col.width)
+            #print(midrule)
         }
 
         #if(file.type == 'tex')
@@ -437,7 +504,7 @@ if(!any(file.type == supported.file.types)) {
                     eol=line.end, row.names = FALSE, col.names = FALSE,
                     quote = FALSE, na=na.string)
         cat(midrule,file=filename, sep='',append=TRUE, fill=TRUE)
-        write.table(body_strings,sep=delimiter,eol='\\\\\n', na =
+        write.table(body_strings,sep=delimiter,eol=line.end, na =
                     na.string, col.names = FALSE, row.names =
         table.rows, quote =
         FALSE,  append=TRUE, file=filename)
@@ -446,13 +513,13 @@ if(!any(file.type == supported.file.types)) {
         if(!is.null(indicate)){
             write.table(indicator.strings,sep=delimiter,col.names = FALSE, quote
                         = FALSE, file=filename,append=TRUE, row.names =
-            str_pad(dimnames(indicator.strings)[[1]],col.width,side='right'),eol='\\\\\n')
+            str_pad(dimnames(indicator.strings)[[1]],single.column.padding,side='right'),eol=line.end)
         }
         cat(midrule,file=filename, append=TRUE, sep='', fill=TRUE)
         #cat(stats.string)
-        write.table(stats.numbers,sep=delimiter,eol='\\\\\n', na =
+        write.table(stats.numbers,sep=delimiter,eol=line.end, na =
                     na.string, row.names =
-        str_pad(dimnames(stats.numbers)[[1]],col.width,side='right'), col.names = FALSE, quote = FALSE,file=filename, append=TRUE)
+        str_pad(dimnames(stats.numbers)[[1]],single.column.padding,side='right'), col.names = FALSE, quote = FALSE,file=filename, append=TRUE)
         if(file.type=='tex') cat(bottomrule,file=filename, append=TRUE)
         options(warn=currentWarning)
         #print(header.string[[1]])

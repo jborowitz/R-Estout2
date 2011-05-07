@@ -359,19 +359,23 @@ if(!any(file.type == supported.file.types)) {
             #fals
             #print(body_numbers)
             #print(aperm(body_numbers,c(1,3,2)))
-            print(model.names)
-            model.names <-
-                matrix(rbind(model.names,matrix(NA,length(cell.names)-1,num.models)),1,length(cell.names)*num.models)
+            renamed.var.list <- var.list
+            for(i in names(var.rename)) renamed.var.list[var.list == i] <- var.rename[[i]]
+            renamed.var.list <- unlist(lapply(renamed.var.list,str_pad,width=col.width,side='right'))
+            print(renamed.var.list)
+            nm <-
+                matrix(rbind(model.names,matrix(NA,length(cell.names)-1,length(model.names))),1,length(cell.names)*length(model.names))
             #model.names <-
+            print(renamed.var.list)
                 #cbind(NA,matrix(rbind(model.names,matrix(NA,length(cell.names)-1,num.models)),1,length(cell.names)*num.models))
             print(model.names)
             #model.names <-
                 #write.table(model.names,sep=',',row.names=FALSE,
                             #col.names=FALSE,na='')
             #print(model.names)
-            table.rows <- var.list
+            table.rows <- renamed.var.list
             body_strings <-
-                array(aperm(body_numbers,c(1,3,2)),c(length(var.list),length(model.names),1),dimnames=list(var.list,model.names)) 
+                array(aperm(body_numbers,c(1,3,2)),c(length(renamed.var.list),length(model.names)*length(cell.names),1),dimnames=list(renamed.var.list,nm)) 
             print(body_strings)
         }
         else {

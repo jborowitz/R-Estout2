@@ -1,11 +1,11 @@
 `esttab2` <-
-    function(beta.value=TRUE, se.value=TRUE, t.value=FALSE, p.value=FALSE, round.dec=3, caption=NULL,
-             label=NULL, sig.levels=c(0.05, 0.01, 0.001), sig.sym=c("*", "**",
-                                                                  "***"),
+    function(beta.value=TRUE, se.value=TRUE, t.value=FALSE, p.value=FALSE,
+             round.dec=3, sig.levels=c(0.05, 0.01, 0.001), sig.sym=c("*",
+                                                                     "**",
+                                                                     "***"),
              filename=NULL, file.type='tex', dcolumn=NULL, table="table",
-             table.pos="htbp", caption.top=FALSE, booktabs=FALSE,
-             var.order=NULL, sub.sections=NULL, var.rename=NULL, keep=NULL,
-             se.func=vcov, coef.func=coef, col.width=24, col.headers=NULL,
+             booktabs=FALSE, var.rename=NULL, keep=NULL, se.func=vcov,
+             coef.func=coef, col.width=24, col.headers=NULL,
              unstack.cells=FALSE,N=TRUE,R2=TRUE, indicate=NULL, drop=NULL,
              headlines=FALSE, footlines=FALSE){
         library('stringr')
@@ -305,7 +305,7 @@
             aR2 <- "adj.R^2"
             N <- "N"
             om.end <- "\n"
-            caption <- paste(caption,om.end,sep="")
+            #caption <- paste(caption,om.end,sep="")
             threestar <- paste(sig.sym[[3]],sep="")
             twostar <- paste(sig.sym[[2]],sep="")
             onestar <- paste(sig.sym[[1]],sep="")
@@ -323,7 +323,7 @@
             twostar <- paste(sig.sym[[2]],sep="")
             onestar <- paste(sig.sym[[1]],sep="")
             line.end <- '\n'
-            caption <- paste(caption,line.end,sep="")
+            #caption <- paste(caption,line.end,sep="")
         }
         else{# For txt
             na.string <- str_pad('',col.width)
@@ -333,31 +333,15 @@
             aR2 <- "$adj.R^2$"
             N <- "$N$"
             om.end <- "\\\\\n"
-            caption <- caption
+            #caption <- caption
             threestar <- paste("\\sym{",sig.sym[[3]],"}",sep="")
             twostar <- paste("\\sym{",sig.sym[[2]],"}",sep="")
             onestar <- paste("\\sym{",sig.sym[[1]],"}",sep="")
             line.end <- '\\\\\n'
         }
-        ######### creating a vector of variable names ##########################
-        if(is.null(var.order) == FALSE){
-            var.list <- var.order
-        }
-        #########################################################################
 
-        #########################################################################
-        # Begin Jeff's Comments:
-        # It looks like end.sep.line is where the line is drawn.  What I want to do
-        # is make something that defaults to this if stats is null, and if it's not
-        # null will put all the various stats in there.  The key thing is to put a
-        # stat taht only applies to some models.
-        #########################################################################
         ########## making stars and putting in matrix #### stars depend on p-values ##########
-        #table.rows <- matrix(rbind(var.list,matrix(paste(var.list,'aux',sep=''),1,length(var.list))),2*length(var.list),1)
-        # This code creates a vertical matrix of "RT", "", "income", etc...
-        # interpsersing blanks with the variable names
 
-        # Now, this is going to only print the coefficients portion of the table
         body_numbers <-
             array(NA,dim=c(length(var.list),length(model.names),
                            length(cell.names)),dimnames=list(var.list,model.names,cell.names)) 
@@ -436,10 +420,15 @@
             if(!is.null(indicate)){
                 for(i in names(indicate)){
                     d <- grepl(paste('^',indicate[[i]],'$',sep=''),names(coef(ccl[['results',j]])))
+                    # See if the regular expression matches any variables.
+                    # The key thing is that it must match the ENTIRE line,
+                    # so that e.g. 'college' doesn't match 'collegeyears'
                     if(any(d)) {
                         if(file.type == 'tex' & unstack.cells)
                             indicator.strings[[i,j]]  <-
                                 str_pad(paste("\\multicolumn{",num.multicol,'}{c}{',indicator.yes,'}',sep=''),padding,side='both')
+                        # make the unstacked multicolumn command for the
+                        # indicator value
                         else indicator.strings[[i,j]] = str_pad(indicator.yes,
                                                                 padding,side='both')
                         if(file.type == 'csv'){
@@ -449,6 +438,8 @@
                         if(file.type == 'tex' & unstack.cells){
                             indicator.strings[[i,j]]  <-
                                 str_pad(paste("\\multicolumn{",num.multicol,'}{c}{',indicator.no,'}',sep=''),padding,side='both')
+                            # Generate the multicolumn command for
+                            # unstacked cells when there is not a match
                         }
                         else{
                             indicator.strings[[i,j]] = str_pad(indicator.no,
@@ -461,7 +452,8 @@
         if(unstack.cells) {
             renamed.var.list <-
                 unlist(lapply(renamed.var.list,str_pad,width=single.column.padding,side='right'))
-            # Pad the variable list.
+            # Pad the variable list.  Note that this padds even the csv
+            # variable list but for csvs the padding is 0
             nm <-
                 matrix(rbind(model.names,matrix(NA,length(cell.names)-1,length(model.names))),1,length(cell.names)*length(model.names))
             # Combine the model names with enough blanks so that there are
@@ -479,12 +471,10 @@
         else {
             # Combine body_numbers table into groups of rows for each coefficient
             blanks <- matrix(str_pad('',single.column.padding),length(cell.names)-1,length(unlist(var.list)))
-            # TODO: change '' to NA here and see if I can avoid duplicate
-            # row names.  Note that this doesn't work.  Blank row names are
+            # I wanted to change '' to NA here and see if I can avoid duplicate
+            # row names.  Now I know that this doesn't work.  Blank row names are
             # file, but give a warning.  I have instead suppressed exactly
             # this warning when the matrix is written to the file.
-            # Create a matrix of blank strings that will be the row names for the t
-            # stats, standard errors, etc
             renamed.var.list <-
                 unlist(lapply(renamed.var.list,str_pad,width=padding,side='right'))
             table.rows <-

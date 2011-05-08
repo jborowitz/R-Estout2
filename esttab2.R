@@ -6,7 +6,8 @@
              table.pos="htbp", caption.top=FALSE, booktabs=FALSE,
              var.order=NULL, sub.sections=NULL, var.rename=NULL, keep=NULL,
              se.func=vcov, coef.func=coef, col.width=24, col.headers=NULL,
-             unstack.cells=FALSE,N=TRUE,R2=TRUE, indicate=NULL, drop=NULL){
+             unstack.cells=FALSE,N=TRUE,R2=TRUE, indicate=NULL, drop=NULL,
+             headlines=FALSE, footlines=FALSE){
 
         # TODO: get rid of repeated row name warning message.  Document,
         # and clean up.  Potentially I can then add .txt and .csv outputs.
@@ -16,6 +17,8 @@
         # to report marginal effects (coef.func) or different standard errors
         # (se.func).  These functions need to work with
         # names(coef.func(results))
+        # headlines and footlines are whether to have double \hlines as the
+        # first and second line of the table
         to.include <- c(beta.value,se.value,t.value,p.value)
         cell.names <- c('beta','se','t','p')[to.include]
         fileparts <- strsplit(filename,'\\.')
@@ -106,12 +109,10 @@ if(!any(file.type == supported.file.types)) {
                 single.column.padding <- 0
                 model.name.string <-
                     cbind(matrix(NA,1,1),matrix(rbind(model.names,matrix(NA,length(cell.names)-1,num.models)),1,length(cell.names)*num.models))
-                print(model.name.string)
                 # Insert 'NA' elements in the column header for the extra
                 # cells 
                 header.string <-
                         cbind(matrix(NA,1,1),matrix(rbind(ms1,matrix(NA,length(cell.names)-1,num.models)),1,length(cell.names)*num.models))
-                print(header.string)
             }else{
                 padding <- col.width
                 padding <- 0
@@ -133,7 +134,6 @@ if(!any(file.type == supported.file.types)) {
                 num.multicol <- 1
             }
             model.num.string  <- str_pad(ms1,padding,side='both')
-            print(model.num.string)
             #enclose the numbers in  the multicolumn command, spanning the number of
             #columns necessary if the results are unstacked
             header.string <-
@@ -402,31 +402,17 @@ if(!any(file.type == supported.file.types)) {
             } # end for model (j)
         }
         table.rows <- matrix(rbind(var.list,matrix(paste(var.list,'aux',sep=''),1,length(var.list))),2*length(var.list),1)
-        #o2 <-
-        #matrix(NA,length(cell.names)*length(var.list),length(model.names),dimnames=list(table.rows,model.names))
-        #print(var.list)
-        #print(model.names)
         if(unstack.cells) {
-            #TODO: create the labels for this shape matrix, which basically means
-            #putting some blanks in with the model names, analogous to if unstack is
-            #fals
-            #print(body_numbers)
-            #print(aperm(body_numbers,c(1,3,2)))
             renamed.var.list <- var.list
             for(i in names(var.rename)) renamed.var.list[var.list == i] <- var.rename[[i]]
+            # Create 'renamed.var.list', which applies the renaming
+            # specified in the var.rename option
             renamed.var.list <-
                 unlist(lapply(renamed.var.list,str_pad,width=single.column.padding,side='right'))
-            print(renamed.var.list)
+            # Pad the variable list
             nm <-
                 matrix(rbind(model.names,matrix(NA,length(cell.names)-1,length(model.names))),1,length(cell.names)*length(model.names))
-            #model.names <-
-            print(renamed.var.list)
-                #cbind(NA,matrix(rbind(model.names,matrix(NA,length(cell.names)-1,num.models)),1,length(cell.names)*num.models))
-            print(model.names)
-            #model.names <-
-                #write.table(model.names,sep=',',row.names=FALSE,
-                            #col.names=FALSE,na='')
-            #print(model.names)
+            # Combine the model names with enough blanks to create 
             table.rows <- renamed.var.list
             body_strings <-
                 array(aperm(body_numbers,c(1,3,2)),c(length(renamed.var.list),length(model.names)*length(cell.names),1),dimnames=list(renamed.var.list,nm)) 
@@ -436,7 +422,9 @@ if(!any(file.type == supported.file.types)) {
             # Combine body_numbers table into groups of rows for each coefficient
             blanks <- matrix(str_pad('',single.column.padding),length(cell.names)-1,length(unlist(var.list)))
             # TODO: change '' to NA here and see if I can avoid duplicate
-            # row names
+            # row names.  Note that this doesn't work.  Blank row names are
+            # file, but give a warning.  I have instead suppressed exactly
+            # this warning when the matrix is written to the file.
             # Create a matrix of blank strings that will be the row names for the t
             # stats, standard errors, etc
             renamed.var.list <- var.list
@@ -467,9 +455,11 @@ if(!any(file.type == supported.file.types)) {
                 midrule <- "\\midrule"
                 bottomrule <- "\\bottomrule\n"
             } else{
-                toprule <- "\\hline\\hline\n"
-                midrule <- "\\hline"
-                bottomrule <- "\\hline\\hline\n"
+                if(headlines) toprule <- "\\hline\\hline\n"
+                else toprule <- ''
+                midrule <- "\\hline\n"
+                if(footlines) bottomrule <- "\\hline\\hline\n"
+                else bottomrule <- ''
             }
         } 
         if(file.type == 'csv'){
@@ -480,11 +470,13 @@ if(!any(file.type == supported.file.types)) {
         if(file.type == 'txt'){
             toprule <- ''
             if(unstack.cells) {
-                midrule <- rep('_',padding*(num.models+1)*length(cell.names))
+                midrule <-
+                    c(rep('_',padding*num.models +
+                          single.column.padding),'\n')
                 print(length(midrule))
             }
             else {
-                midrule <- rep('_',padding*(num.models+1))
+                midrule <- c(rep('_',padding*(num.models+1)),'\n')
             }
             #print(length(num.models))
             #print(col.width)
@@ -503,7 +495,7 @@ if(!any(file.type == supported.file.types)) {
         write.table(model.name.string,file=filename, append=TRUE,sep=delimiter,
                     eol=line.end, row.names = FALSE, col.names = FALSE,
                     quote = FALSE, na=na.string)
-        cat(midrule,file=filename, sep='',append=TRUE, fill=TRUE)
+        cat(midrule,file=filename, sep='',append=TRUE)
         write.table(body_strings,sep=delimiter,eol=line.end, na =
                     na.string, col.names = FALSE, row.names =
         table.rows, quote =
@@ -515,7 +507,7 @@ if(!any(file.type == supported.file.types)) {
                         = FALSE, file=filename,append=TRUE, row.names =
             str_pad(dimnames(indicator.strings)[[1]],single.column.padding,side='right'),eol=line.end)
         }
-        cat(midrule,file=filename, append=TRUE, sep='', fill=TRUE)
+        cat(midrule,file=filename, append=TRUE, sep='')
         #cat(stats.string)
         write.table(stats.numbers,sep=delimiter,eol=line.end, na =
                     na.string, row.names =

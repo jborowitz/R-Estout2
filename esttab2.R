@@ -8,50 +8,59 @@
              se.func=vcov, coef.func=coef, col.width=24, col.headers=NULL,
              unstack.cells=FALSE,N=TRUE,R2=TRUE, indicate=NULL, drop=NULL,
              headlines=FALSE, footlines=FALSE){
+        library('stringr')
 
-        # TODO: get rid of repeated row name warning message.  Document,
-        # and clean up.  Potentially I can then add .txt and .csv outputs.
-        # Also, I should test really long stats inputs to make sure they're
-        # rounded OK with that and the N
         # coef.func and se.fun are function names that can be passed in order
         # to report marginal effects (coef.func) or different standard errors
         # (se.func).  These functions need to work with
         # names(coef.func(results))
         # headlines and footlines are whether to have double \hlines as the
         # first and second line of the table
-        to.include <- c(beta.value,se.value,t.value,p.value)
-        cell.names <- c('beta','se','t','p')[to.include]
-        fileparts <- strsplit(filename,'\\.')
-file.type <- fileparts[[1]][[2]]
-supported.file.types <- c('tex','txt','csv')
-if(!any(file.type == supported.file.types)) {
-    warning('\'filename\' extension does not match supported file type.  TeX
-            file chosen as default')
-    file.type <- 'tex'
-}
-
         # filename: the name of the file where the output will be saved.  The
         # extension to this must be 'tex', 'csv', or 'txt', which will determine
         # which type of output file is saved.
-        #col.headers will override using the dependent variable name 
-        #unstack.cells will put each auxiliary element in a separate column
-        #N: report the number of observations in each model
-        #R2: report the R2 of the model.  If this cannot be accessed through
-        #the 'r.squared' attribute of the summary of the results, this will
-        #cause an error
+        # col.headers will override using the dependent variable name 
+        # unstack.cells will put each auxiliary element in a separate column
+        # N: report the number of observations in each model
+        # R2: report the R2 of the model.  If this cannot be accessed through
+        # the 'r.squared' attribute of the summary of the results, this will
+        # cause an error
         # indicate: takes a list('ageyoungest*'='Age of Youngest') type
         # argument
-        #var.rename is a list like: list('old name'='new name', 'another
-        #old name' = 'another old name')
+        # var.rename is a list like: list('old name'='new name', 'another
+        # old name' = 'another old name')
         # Note that if you keep something that is absorbed into an
         # 'indicator', it will be ignored.
+
+        to.include <- c(beta.value,se.value,t.value,p.value)
+        cell.names <- c('beta','se','t','p')[to.include]
+        # Create a vector that contains the names of the analysis elements
+        # to include.
+        fileparts <- strsplit(filename,'\\.')
+        file.type <- fileparts[[1]][[2]]
+        # Determine the file type from the output filename
+        supported.file.types <- c('tex','txt','csv')
+        if(!any(file.type == supported.file.types)) {
+            warning('\'filename\' extension does not match supported file type.  TeX
+                    file chosen as default')
+            file.type <- 'tex'
+        }
+
         indicator.yes <- 'X'
         indicator.no <- ' '
-        library('stringr')
-        # reading list from eststo
-        # TODO: sanitize the string inputs to get rid of newlines from
-        # broken strings: stringvec<-gsub('\n','',stringvec) for whatever
-        # needs it.
+        for(i in names(indicate)) {
+            new.name <- gsub('\\s+',' ',i)
+            if(new.name != i){
+                old.val <- indicate[[i]]
+                indicate[[i]] <- NULL
+                indicate[[new.name]] <- old.val
+            }
+        }
+        for(i in names(var.rename)) var.rename[[i]] <-
+            gsub('\\s+',' ',var.rename[[i]])
+        # Sanitize inputs for var.rename and indicate.  TODO: try to find a
+        # way to keep the sorting of the indicate variables.  I think the
+        # current method might get rid of sorting.
         ccl <<- ccl
         num.models <- length(ccl[1,])
         if(!is.null(col.headers) & length(col.headers) == length(dimnames(ccl)[[2]])) {

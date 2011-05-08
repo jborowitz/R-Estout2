@@ -32,6 +32,68 @@
         # Note that if you keep something that is absorbed into an
         # 'indicator', it will be ignored.
 
+        # This table is written in 5 distinct parts.  There is a head line,
+        # which has model numbers in columns and is built in header.string.
+        # Then, there is a model titles line, which is in the
+        # model.name.string.  Next, comes the body of main results and
+        # auxiliary results, either stacked or not.  This is built in
+        # body.string.  After that comes the indicator.string, which marks
+        # with an X or not whether each model has a collection of
+        # variables.  Finally comes the stats.string, which contains
+        # auxiliary stats and or N and R2 for each model.
+
+        # From a technical standpoint, the ccl object contains the stats
+        # field, which is a list of statistic=value; and a results object,
+        # which contains the results of fitting the model.  Currently, key
+        # things that are necessary for the results object are that either
+        # it returns a variance-covariance matrix with the command
+        # vcov(result) OR a function is provided as se.func which provides
+        # this vcov matrix; and that the summary object of the results has
+        # r.squared and residuals fields, and that the coef function or
+        # whatever is specified for coef.func) has a names field for the
+        # variable names.  
+
+        # The factor that drives most of the complexity in this function is
+        # the ability to 'unstack' the results.  For every coefficient for
+        # every model, there is likely another piece of information that
+        # you want to display, such as a standard error, p-value, or
+        # t-stat.  You can display any or all of these statistics.  In
+        # future versions, I hope to expand this to allow for multiple
+        # arbitrary functions for each coefficient, so that the marginal
+        # effect could be displayed along-side the coefficient, etc.
+        # Currently, marginal effects could be implemented by using a
+        # function that has returns a $names field that is passed to the
+        # coef.func option.  In any case, if these 'cells' for each
+        # coefficient are unstacked, they are displayed horizontally across
+        # the cell, while if they are not unstacked they are displayed
+        # vertically, one on each line.
+
+        # Some Variable Definitions:
+        # cell.names: this is a list of the names of the cells that are
+        # actually included in the output table.
+        # num.models - the number of models in the ccl object
+        # var.list - the initial variable names from all models together
+        # renamed.var.list - The variable names updated by inputs and
+        # decreased by whtaever goes into the indicator section
+        # model.list - A vector of the model names
+        # padding - the text width of an unstacked column for the unstacked
+        # table
+        # single.column.padding - the text width of a stacked column
+        # num.multicol - the number of cells, which is now big the latex
+        # \multicol command needs to be in order to have a valid table
+        # model.name.string - The string of model names to be printed in a
+        # table
+        # header.string - The string with the model numbers for a table
+        # body_numbers: a mis-named matrix that contains the un-padded strings for
+            #the body of the table, the model coefficients
+        # body.string - The string matrix with the coefficients for the
+        # main part of the table
+        # indicator.string - The string matrix with the indicator.yes and
+        # indicator.no strings in the appropriate places indicating whether
+        # any of sets of variables are present
+        # stats.string - The matrix of strings of auxiliary statistics for
+        # the table
+
         to.include <- c(beta.value,se.value,t.value,p.value)
         cell.names <- c('beta','se','t','p')[to.include]
         # Create a vector that contains the names of the analysis elements
@@ -62,14 +124,17 @@
         # way to keep the sorting of the indicate variables.  I think the
         # current method might get rid of sorting.
         ccl <<- ccl
+        # Grab the global results element.
         num.models <- length(ccl[1,])
         if(!is.null(col.headers) & length(col.headers) == length(dimnames(ccl)[[2]])) {
             dimnames(ccl)[[2]] <- col.headers
-        }
+        } # Set the column headers to the specified values if entered
         model.names <- dimnames(ccl)[[2]]
         var.list <- NULL
+        for(i in model.names) var.list<- union(var.list,names(coef.func(ccl[['results',i]])))
+        # For each model, add the list of independent variables to the
+        # overall list through the 'union' command.
         indicator.list <- NULL
-        for(i in dimnames(ccl)[[2]]) var.list<- union(var.list,names(coef.func(ccl[['results',i]])))
         for(i in names(indicate)){
             matches <- grepl(paste('^',indicate[[i]],'$',sep=''),var.list)
             var.list <- var.list[!matches]
@@ -77,6 +142,9 @@
                 indicator.list<-union(indicator.list,i)
             }
         }
+        # Look for indicator matches.  If you find them, remove them from
+        # the variable list and add the overall indicator to the indicator
+        # list
 
         # The variable list is the union of all variables stored
         if(!is.null(keep)) var.list<- intersect(var.list,keep)
@@ -87,7 +155,8 @@
 
         renamed.var.list <- var.list
         for(i in names(var.rename)) renamed.var.list[var.list == i] <- var.rename[[i]]
-        # Rename the variable list according to input variables names
+        # Create 'renamed.var.list', which applies the renaming
+        # specified in the var.rename option
 
         model.numbers <- 1:num.models
         #vector of numbers enclosed in parenthesis
@@ -169,7 +238,7 @@
                 c(ccl[['stats',i]],N=length(summary(ccl[['results',i]])[['residuals']]))
         }
         stats.list <- c(stats.list,'R2','N')
-        stats.numbers <- 
+        stats.string <- 
             array(NA,dim=c(length(stats.list),length(model.names)),dimnames=list(stats.list,model.names)) 
         for(i in stats.list){
             for(j in model.names){
@@ -179,10 +248,10 @@
                         stat <-
                             str_pad(paste('\\multicolumn{',num.multicol,'}{c}{',round(stat,round.dec),'}',sep=''),
                                     padding,side='both')
-                        stats.numbers[i,j] <- stat
+                        stats.string[i,j] <- stat
                     }
                     else{
-                        stats.numbers[i,j] <- str_pad(round(ccl[['stats',j]][[i]],round.dec),padding,side='both')
+                        stats.string[i,j] <- str_pad(round(ccl[['stats',j]][[i]],round.dec),padding,side='both')
                     }
                 }
                 else{
@@ -192,52 +261,44 @@
                             str_pad(paste('\\multicolumn{',num.multicol,'}{c}{ }',sep=''),
                                     padding,side='both')
                     }
-                    stats.numbers[i,j] <- str_pad(stat,padding,side="both")        
+                    stats.string[i,j] <- str_pad(stat,padding,side="both")        
                 }
             }
         }
-        #if(file.type == 'tex'){
-            #if(unstack.cells){
-                #ms2 <-
-                    #str_pad(paste('\\multicolumn{',num.multicol,'}{c}{',stats.numbers,'}',sep=''), padding,side='both')
-                #model.name.string  <-
-                    #paste(str_pad(c('',ms2),col.width),collapse='&')
+
+        ## catching use if empty ccl
+        #if(is.matrix(ccl)){}else{return("No values stored. I think you need to store some models first.")}
+
+        ## setting dcolumn = NULL
+        #if(is.null(dcolumn)){dcolumn <- "c"}else{dcolumn <- dcolumn}
+
+        ## setting tablepos if non-NULL
+        #if(is.null(table.pos)){}else{table.pos <- paste("[",table.pos,"]",sep="")}
+
+        ## setting caption for TeX
+        #if(is.null(caption)){texcaption <- caption}else{texcaption <- paste("\\caption{",caption,"}\n",sep="")}
+
+        ## setting label if non-NULL
+        #if(is.null(label)){}else{label <- paste("\\label{tab:",label,"}\n",sep="")}
+
+        ## converting sub.sections vector to list of type list[i] = c(position,text)
+        #sub.sections.list <- NULL
+        #if(is.null(sub.sections) == FALSE){
+            #if((length(sub.sections)%%2) == 0){
+                #sub.sections.list  <- list() 
+                #for(i in 1:(length(sub.sections)/2)){
+                    #sub.sections.list[[i]]  <- c(sub.sections[[2*i-1]], sub.sections[[2*i]])
+                #}
+            #}
+            #else{
+                #return(cat("Your 'sub.section' vector contains a mistake. Please check and run again."))
             #}
         #}
+        # The above commented code came from the original esttab.R, by
+        # Felix Kaminsky <fkamin@uni-goettingen.de>.  I have currently not
+        # implemented multiple panels or captions.
 
-        # catching use if empty ccl
-        if(is.matrix(ccl)){}else{return("No values stored. I think you need to store some models first.")}
 
-        # setting dcolumn = NULL
-        if(is.null(dcolumn)){dcolumn <- "c"}else{dcolumn <- dcolumn}
-
-        # setting tablepos if non-NULL
-        if(is.null(table.pos)){}else{table.pos <- paste("[",table.pos,"]",sep="")}
-
-        # setting caption for TeX
-        if(is.null(caption)){texcaption <- caption}else{texcaption <- paste("\\caption{",caption,"}\n",sep="")}
-
-        # setting label if non-NULL
-        if(is.null(label)){}else{label <- paste("\\label{tab:",label,"}\n",sep="")}
-
-        # converting sub.sections vector to list of type list[i] = c(position,text)
-        sub.sections.list <- NULL
-        if(is.null(sub.sections) == FALSE){
-            if((length(sub.sections)%%2) == 0){
-                sub.sections.list  <- list() 
-                for(i in 1:(length(sub.sections)/2)){
-                    sub.sections.list[[i]]  <- c(sub.sections[[2*i-1]], sub.sections[[2*i]])
-                }
-            }
-            else{
-                return(cat("Your 'sub.section' vector contains a mistake. Please check and run again."))
-            }
-        }
-
-        # converting var.names vector to list of type list[i] = c(name.old,name.new)
-        #var.rename.list <- NULL
-
-        # for CSV
         if(file.type == 'csv' ){
             delimiter <- ","
             R2 <- "R^2"
@@ -264,7 +325,7 @@
             line.end <- '\n'
             caption <- paste(caption,line.end,sep="")
         }
-        else{
+        else{# For txt
             na.string <- str_pad('',col.width)
             save.file <- paste(filename,".tex",sep="")
             delimiter <- "&"
@@ -282,11 +343,6 @@
         if(is.null(var.order) == FALSE){
             var.list <- var.order
         }
-        var.count <- length(var.list)
-        #cat(var.count)
-        #cat("\n") #control
-        #cat(var_list)
-        #cat("\n")  #control
         #########################################################################
 
         #########################################################################
@@ -309,17 +365,19 @@
             matrix(NA,length(names(indicate)),length(model.names),dimnames=list(names(indicate),model.names))
 
         for (j in model.names){ 
+            variance.matrix <- se.func(ccl[['results',j]])
             for(k in var.list){
-                aux <- paste(k,'aux',sep='')
                 model.list <- ccl[[j]]
                 col_length <- length(model.list)
                 if(!is.na(coef.func(ccl[['results',j]])[k])){
-                    #for (i in 1:(col_length-1)){
                     coefficient <- coef.func(ccl[['results',j]])[[k]]
-                    se <- sqrt(diag(se.func(ccl[['results',j]])))[[k]]
+                    se <- sqrt(diag(variance.matrix))[[k]]
                     tstat <- coefficient/se
                     p <- 2*pt(-1*abs(tstat),res1[['df.residual']])
+                    # Calculate the statistics for inclusion in the cells
                     if ( p < sig.levels[3] ) {
+                        # Begin logic that stars significant coefficients
+                        # appropriately
                         sigs <-
                             str_pad(paste(round(coefficient,round.dec),threestar,sep=""),single.column.padding,side="both") #coefficient
                         std_err <-
@@ -337,7 +395,7 @@
                         t_val <-
                             str_pad(paste("[",round(tstat,round.dec),"]",sep=""),single.column.padding,side="both")
                         p_val <-
-                            str_pad(paste("[",round(p,round.dec),"]",sep=""),single.column.padding,side="both")          #p-value
+                            str_pad(paste("[",round(p,round.dec),"]",sep=""),single.column.padding,side="both")          
                     }
                     else if( p < sig.levels[1] ) {
                         sigs <-
@@ -347,7 +405,7 @@
                         t_val <-
                             str_pad(paste("[",round(tstat,round.dec),"]",sep=""),single.column.padding,side="both")
                         p_val <-
-                            str_pad(paste("[",round(p,round.dec),"]",sep=""),single.column.padding,side="both")          #p-value
+                            str_pad(paste("[",round(p,round.dec),"]",sep=""),single.column.padding,side="both")         
                     }
                     else{
                         sigs <-
@@ -357,31 +415,17 @@
                         t_val <-
                             str_pad(paste("[",round(tstat,round.dec),"]",sep=""),single.column.padding,side="both")
                         p_val <-
-                            str_pad(paste("[",round(p,round.dec),"]",sep=""),single.column.padding,side="both")          #p-value
+                            str_pad(paste("[",round(p,round.dec),"]",sep=""),single.column.padding,side="both")          
                     }
-                    #k <- 1
-                    #while(var.list[k] != coef.info[[1]]){
-                    #k <- k +1
-                    #}
-                    #body_matrix[k*2,j+1] <- sigs #entry of coefficients
                     if(beta.value) body_numbers[k,j,'beta'] <- sigs
                     if(t.value) body_numbers[k,j,'t'] <- t_val
                     if(p.value) body_numbers[k,j,'p'] <- p_val
                     if(se.value) body_numbers[k,j,'se'] <- std_err
-                    #} # end for (i)
-
-                    # rename dep.var
-                    #dep.var <- deparse(ccl[[j]][[col_length]][[1]])
-                    #if(is.null(var.rename) == FALSE){
-                        #for(i in 1:length(var.rename.list)){
-                            #if(dep.var == var.rename.list[[i]][[1]]){
-                                #dep.var <- var.rename.list[[i]][[2]]
-                            #}
-                        #}
-                    #}
+                    # Set values determined above to the body_numbers
+                    # matrix
                 }else{
-                    # If there isn't a coefficient for this row, this is set to a
-                    # blank string
+                    # If there isn't a coefficient for this variable for
+                    # this model this is set to a blank string
                     for(i in cell.names){
                         body_numbers[k,j,i] <-
                             str_pad('',single.column.padding,side="both")        
@@ -412,21 +456,25 @@
                         }
                     }
                 }
-            } # end for model (j)
+            } 
         }
-        table.rows <- matrix(rbind(var.list,matrix(paste(var.list,'aux',sep=''),1,length(var.list))),2*length(var.list),1)
         if(unstack.cells) {
-            # Create 'renamed.var.list', which applies the renaming
-            # specified in the var.rename option
             renamed.var.list <-
                 unlist(lapply(renamed.var.list,str_pad,width=single.column.padding,side='right'))
-            # Pad the variable list
+            # Pad the variable list.
             nm <-
                 matrix(rbind(model.names,matrix(NA,length(cell.names)-1,length(model.names))),1,length(cell.names)*length(model.names))
-            # Combine the model names with enough blanks to create 
+            # Combine the model names with enough blanks so that there are
+            # enough headers.  This is actually unnecessary at htis point,
+            # since I suppress column name printing for the body.  However
+            # I am leaving it here because in the future this could be a
+            # good way to put in cell names.
             table.rows <- renamed.var.list
-            body_strings <-
+            body.string <-
                 array(aperm(body_numbers,c(1,3,2)),c(length(renamed.var.list),length(model.names)*length(cell.names),1),dimnames=list(renamed.var.list,nm)) 
+            # Unstack the body.string.  The body.string was a 3-d array,
+            # but I am now flatting it out to 2d, according to the unstack
+            # command.
         }
         else {
             # Combine body_numbers table into groups of rows for each coefficient
@@ -441,13 +489,17 @@
                 unlist(lapply(renamed.var.list,str_pad,width=padding,side='right'))
             table.rows <-
                 matrix(rbind(renamed.var.list,blanks),length(unlist(renamed.var.list))*length(cell.names),1)
-            # Combine the list of variable names with the blanks to make the row names
+            # Combine the list of variable names with the blanks to make
+            # the row names for the stacked variables
             s <- aperm(body_numbers,c(3,1,2),resize=TRUE)
-            body_strings <-
+            body.string <-
                 array(s,c(length(cell.names)*length(renamed.var.list),length(model.names),1),dimnames=list(table.rows,model.names))
         }
 
-        # setting TeX commands for booktabs
+        # setting TeX commands for booktabs.  This hasn't been changed much
+        # from the original code, and I'm not sure that it is doing much.
+        # I have included blanks for csv tables and underscore lines for
+        # txt files
         if(file.type == 'tex'){
             if(booktabs == TRUE){
                 toprule <- "\\toprule\n"
@@ -472,20 +524,15 @@
                 midrule <-
                     c(rep('_',padding*num.models +
                           single.column.padding),'\n')
+                # Create an underline that is the appropriate length
             }
             else {
                 midrule <- c(rep('_',padding*(num.models+1)),'\n')
             }
-            #print(length(num.models))
-            #print(col.width)
-            #print(midrule)
         }
 
-        #if(file.type == 'tex')
         # Everything here is a 'write.table' command except for the rule
         # lines
-        currentWarning <- getOption('warn')
-        options(warn=-1)
         cat(toprule,file=filename)
         write.table(header.string,file=filename, append=TRUE,sep=delimiter,
                     eol=line.end, row.names = FALSE, col.names = FALSE,
@@ -494,25 +541,25 @@
                     eol=line.end, row.names = FALSE, col.names = FALSE,
                     quote = FALSE, na=na.string)
         cat(midrule,file=filename, sep='',append=TRUE)
-        write.table(body_strings,sep=delimiter,eol=line.end, na =
-                    na.string, col.names = FALSE, row.names =
-        table.rows, quote =
-        FALSE,  append=TRUE, file=filename)
-        #body.string <- write.table(body_strings,sep=delimiter,eol='\\\\\n', na =
-        #str_pad('',col.width), row.names = rn, quote = FALSE)
+        currentWarning <- getOption('warn')
+        options(warn=-1)
+        # I have blank row names for the body.string, which is the case
+        # because if the cells are not unstacked, there are rows beneath
+        # each coefficient for the other cell statistics without names.
+        # estting warn to -1 turns off the warning about overlapping row
+        # names.
+        write.table(body.string,sep=delimiter,eol=line.end, na = na.string,
+                    col.names = FALSE, row.names = table.rows, quote =
+                    FALSE,  append=TRUE, file=filename)
+        options(warn=currentWarning)
         if(!is.null(indicate)){
             write.table(indicator.strings,sep=delimiter,col.names = FALSE, quote
                         = FALSE, file=filename,append=TRUE, row.names =
             str_pad(dimnames(indicator.strings)[[1]],single.column.padding,side='right'),eol=line.end)
         }
         cat(midrule,file=filename, append=TRUE, sep='')
-        #cat(stats.string)
-        write.table(stats.numbers,sep=delimiter,eol=line.end, na =
+        write.table(stats.string,sep=delimiter,eol=line.end, na =
                     na.string, row.names =
-        str_pad(dimnames(stats.numbers)[[1]],single.column.padding,side='right'), col.names = FALSE, quote = FALSE,file=filename, append=TRUE)
+        str_pad(dimnames(stats.string)[[1]],single.column.padding,side='right'), col.names = FALSE, quote = FALSE,file=filename, append=TRUE)
         if(file.type=='tex') cat(bottomrule,file=filename, append=TRUE)
-        options(warn=currentWarning)
-        #print(header.string[[1]])
-        #print(model.name.string[[1]])
-        #write(cat(header.string,col.headers,body_strings,stats.string),file='temp.tex')
     } 

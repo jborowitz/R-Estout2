@@ -199,8 +199,9 @@
                 padding <- col.width
                 padding <- 0
                 single.column.padding <- 0
-                header.string <- matrix(c(NA,ms1))
-                model.name.string <- matrix(c(NA,model.names))
+                header.string <- matrix(c(NA,ms1),1, length(ms1)+1)
+                model.name.string <- matrix(c(NA,model.names),1,
+                                            length(model.names)+1)
             }
             #TODO: create csv headers
         } 

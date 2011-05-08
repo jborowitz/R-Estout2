@@ -76,6 +76,10 @@ if(!any(file.type == supported.file.types)) {
         # find this list
         if(!is.null(drop)) var.list<- setdiff(var.list,drop)
 
+        renamed.var.list <- var.list
+        for(i in names(var.rename)) renamed.var.list[var.list == i] <- var.rename[[i]]
+        # Rename the variable list according to input variables names
+
         model.numbers <- 1:num.models
         #vector of numbers enclosed in parenthesis
         ms1 <- paste('(',model.numbers,')',sep='')
@@ -403,8 +407,6 @@ if(!any(file.type == supported.file.types)) {
         }
         table.rows <- matrix(rbind(var.list,matrix(paste(var.list,'aux',sep=''),1,length(var.list))),2*length(var.list),1)
         if(unstack.cells) {
-            renamed.var.list <- var.list
-            for(i in names(var.rename)) renamed.var.list[var.list == i] <- var.rename[[i]]
             # Create 'renamed.var.list', which applies the renaming
             # specified in the var.rename option
             renamed.var.list <-
@@ -416,7 +418,6 @@ if(!any(file.type == supported.file.types)) {
             table.rows <- renamed.var.list
             body_strings <-
                 array(aperm(body_numbers,c(1,3,2)),c(length(renamed.var.list),length(model.names)*length(cell.names),1),dimnames=list(renamed.var.list,nm)) 
-            print(body_strings)
         }
         else {
             # Combine body_numbers table into groups of rows for each coefficient
@@ -427,14 +428,8 @@ if(!any(file.type == supported.file.types)) {
             # this warning when the matrix is written to the file.
             # Create a matrix of blank strings that will be the row names for the t
             # stats, standard errors, etc
-            renamed.var.list <- var.list
-            for(i in names(var.rename)) renamed.var.list[var.list == i] <- var.rename[[i]]
             renamed.var.list <-
                 unlist(lapply(renamed.var.list,str_pad,width=padding,side='right'))
-            #s <- rbind(blanks,renamed.var.list)
-            #print(s)
-            #table.rows <-
-                #matrix(rbind(unlist(renamed.var.list),blanks),length(unlist(renamed.var.list))*length(cell.names),1)
             table.rows <-
                 matrix(rbind(renamed.var.list,blanks),length(unlist(renamed.var.list))*length(cell.names),1)
             # Combine the list of variable names with the blanks to make the row names
@@ -442,11 +437,6 @@ if(!any(file.type == supported.file.types)) {
             body_strings <-
                 array(s,c(length(cell.names)*length(renamed.var.list),length(model.names),1),dimnames=list(table.rows,model.names))
         }
-        #rownames(body_numbers) <- sub('.*aux *$','',rownames(body_numbers))
-        print('made it here')
-        #print(table.rows)
-        #body.string <- write.table(body_strings,sep=delimiter,eol='\\\\\n', na =
-        #str_pad('',col.width), row.names = rn, quote = FALSE)
 
         # setting TeX commands for booktabs
         if(file.type == 'tex'){
@@ -473,7 +463,6 @@ if(!any(file.type == supported.file.types)) {
                 midrule <-
                     c(rep('_',padding*num.models +
                           single.column.padding),'\n')
-                print(length(midrule))
             }
             else {
                 midrule <- c(rep('_',padding*(num.models+1)),'\n')

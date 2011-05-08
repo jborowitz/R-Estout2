@@ -26,7 +26,6 @@ if(exists("ccl",where=1)){
     old.results <<- ccl # access current results matrix into old.results 
     if(is.null(model.name)){
         model.name <- paste('model',length(old.results[1,])+1,sep='')
-        print(model.name)
     }
     these.results<- matrix(list(),2,1,dimnames =
                            list(c('stats','results'),c(model.name)))

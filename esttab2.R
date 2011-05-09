@@ -126,9 +126,6 @@
         ccl <<- ccl
         # Grab the global results element.
         num.models <- length(ccl[1,])
-        if(!is.null(col.headers) & length(col.headers) == length(dimnames(ccl)[[2]])) {
-            dimnames(ccl)[[2]] <- col.headers
-        } # Set the column headers to the specified values if entered
         model.names <- dimnames(ccl)[[2]]
         var.list <- NULL
         for(i in model.names) var.list<- union(var.list,names(coef.func(ccl[['results',i]])))
@@ -158,6 +155,16 @@
         # Create 'renamed.var.list', which applies the renaming
         # specified in the var.rename option
 
+        if(!is.null(col.headers) & length(col.headers) == length(dimnames(ccl)[[2]])) {
+            model.labels <- col.headers
+        } else{
+            model.labels <- model.names
+        }
+        # Set the column headers to the specified values if entered
+        # Everything here is a 'write.table' command except for the rule
+        # lines.  This happens at the end so that redundant columns headers
+        # can be allowed. 
+
         model.numbers <- 1:num.models
         #vector of numbers enclosed in parenthesis
         ms1 <- paste('(',model.numbers,')',sep='')
@@ -179,7 +186,8 @@
             header.string <-
                 paste(str_pad(c('',model.num.string),col.width),collapse='&')
             #Concatenate the headers into one string, separated by & and ended with \\
-            ms2 <- str_pad(paste('\\multicolumn{',num.multicol,'}{c}{',model.names,'}',sep=''), padding,side='both')
+            ms2 <-
+                str_pad(paste('\\multicolumn{',num.multicol,'}{c}{',model.labels,'}',sep=''), padding,side='both')
             model.name.string  <-
                 paste(str_pad(c('',ms2),col.width),collapse='&')
         }
@@ -190,7 +198,7 @@
                 padding <- 0
                 single.column.padding <- 0
                 model.name.string <-
-                    cbind(matrix(NA,1,1),matrix(rbind(model.names,matrix(NA,length(cell.names)-1,num.models)),1,length(cell.names)*num.models))
+                    cbind(matrix(NA,1,1),matrix(rbind(model.labels,matrix(NA,length(cell.names)-1,num.models)),1,length(cell.names)*num.models))
                 # Insert 'NA' elements in the column header for the extra
                 # cells 
                 header.string <-
@@ -200,8 +208,8 @@
                 padding <- 0
                 single.column.padding <- 0
                 header.string <- matrix(c(NA,ms1),1, length(ms1)+1)
-                model.name.string <- matrix(c(NA,model.names),1,
-                                            length(model.names)+1)
+                model.name.string <- matrix(c(NA,model.labels),1,
+                                            length(model.labels)+1)
             }
             #TODO: create csv headers
         } 
@@ -222,7 +230,7 @@
             header.string <-
                 paste(c(str_pad('',col.width,side='both'),model.num.string), collapse=' ')
             #Concatenate the headers into one string, separated by & and ended with \\
-            ms2 <- str_pad(model.names, padding,side='both')
+            ms2 <- str_pad(model.labels, padding,side='both')
             model.name.string  <-
                 paste(str_pad(c('',ms2),col.width),collapse=' ')
         }
@@ -583,8 +591,8 @@
             }
         }
 
-        # Everything here is a 'write.table' command except for the rule
-        # lines
+        ################################################################################
+        # Begin writing output
         cat(toprule,file=filename)
         write.table(header.string,file=filename, append=TRUE,sep=delimiter,
                     eol=line.end, row.names = FALSE, col.names = FALSE,

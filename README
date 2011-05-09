@@ -49,3 +49,20 @@ includes the set of t factor variables.  The regular expression follows R's
 regular expression syntax, and is set to match only the entire string.
 Thus 't.*' will match 't1' and 't2' but not 'weight'.  It actually would
 match 'television' too in this case, so be careful how you name things.
+
+2.3 Extra Model Statistics
+You can specify additional model statistics, such as the marginal effect of
+your main variable, and include these at he bottom of the table near 'N'
+and 'R2'.  For example, say you want the 1 standard deviation effect of x1.
+You could store
+
+effect <- sd(x1)*coef(results1)[['x1']]
+eststo(results1,stats=list('Marginal Effect of x1'=effect))
+
+And esttab would print this out as the line above R2 and N.  You have to
+match the name of the stats between models if you want the stats from each
+model to show up in the same row.
+
+There are more options to make the tables look good, so look at the source
+code for esttab2.  Especially in the beginning, it has some descriptions of
+how the options work

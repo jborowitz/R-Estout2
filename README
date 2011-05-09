@@ -1,0 +1,51 @@
+1.  Installation.  
+This package is not yet packaged for R at all, but lives as 3 source code
+files.  To use it, put the files in some directory, and then call:
+
+source('$PATH/eststo2.R')
+source('$PATH/esttab2.R')
+source('$PATH/estclear.R')
+
+1.1  Dependencies
+This depends on the 'stringr' package>
+
+2.  Use.
+To use the package, run regressions like:
+
+results1 <- lm(y ~ x1 + x2 + x4)
+results2 <- lm(y ~ x1 + x3 + x4)
+
+Then, store each regression like:
+
+estclear()
+eststo2(results1)
+eststo2(results2)
+
+Finally, print the output like:
+
+esttab2(filename='output.tex')
+
+2.1 Keeping and Dropping variables
+This function supports printing only a subset of the variables in an output
+table.  Specify the option keep to esttab2:
+
+keep=list('x1','x2','x3')
+
+Similarly, you could use drop to specify the list of variable names to
+drop.  If you specify both keep and drop at the same time, thta might cause
+problems.
+
+2.2 Indicators
+Estout2 also supports indicator variables.  Imagine in the regressions
+above we included a factor variable 't':
+
+results1 <- lm(y ~ x1 + x2 + x4 )
+results2 <- lm(y ~ x1 + x3 + x4 + t)
+results1 <- lm(y ~ x1 + x2 + x4 + t)
+
+You could then use the option: indicate=list('Time Dummies'='t.*') to
+produce a row of the output table that indicates whether each model
+includes the set of t factor variables.  The regular expression follows R's
+regular expression syntax, and is set to match only the entire string.
+Thus 't.*' will match 't1' and 't2' but not 'weight'.  It actually would
+match 'television' too in this case, so be careful how you name things.

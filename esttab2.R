@@ -398,7 +398,7 @@
                         sigs <-
                             str_pad(paste(round(coefficient,round.dec),threestar,sep=""),single.column.padding,side="both") #coefficient
                         std_err <-
-                            str_pad(paste("(",se,")",sep=""),single.column.padding,side="both")        #std.err
+                            str_pad(paste("(",round(se,round.dec),")",sep=""),single.column.padding,side="both")        #std.err
                         t_val <-
                             str_pad(paste("[",round(tstat,round.dec),"]",sep=""),single.column.padding,side="both")          #t-value
                         p_val <-

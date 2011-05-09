@@ -231,16 +231,17 @@
         stats.list <- NULL
         for(i in model.names) {
             stats.list <- union(stats.list,names(ccl[['stats',i]]))
-            #if(R2) ccl[['stats',i]][['R2']] <- summary(ccl[['results',i]])[['r.squared']]
-            #if(N) ccl[['stats',i]][['N']] <- length(summary(ccl[['results',i]])[['residuals']])
             if(R2) ccl[['stats',i]] <-
                 c(ccl[['stats',i]],R2=summary(ccl[['results',i]])[['r.squared']])
             if(N) ccl[['stats',i]] <-
                 c(ccl[['stats',i]],N=length(summary(ccl[['results',i]])[['residuals']]))
-        }
+        } 
         stats.list <- c(stats.list,'R2','N')
         stats.string <- 
             array(NA,dim=c(length(stats.list),length(model.names)),dimnames=list(stats.list,model.names)) 
+        # Build the list of stats (stats.list) by taking the union of all
+        # stats reported for each model.  R2 and N are placed at the end if
+            # specified by the R2 and N options
         for(i in stats.list){
             for(j in model.names){
                 if(!is.null(ccl[['stats',j]][[i]])) {
@@ -265,6 +266,34 @@
                     stats.string[i,j] <- str_pad(stat,padding,side="both")        
                 }
             }
+        }
+
+        if(file.type == 'csv' & unstack.cells){
+            # Unstack for a CSV, which means inserting blank cells in
+            # the right spots.
+            dummynames <- 1:(length(cell.names)*num.models)
+            # These names are the column names for the indicator variables
+            # with extra columns stuck in.  These column names are not
+            # printed, so they just have to match the dimensions
+            new.stats.string <-
+                matrix(NA,length(stats.list),length(model.names)*length(cell.names),dimnames=list(stats.list,dummynames))
+            # Initialize a bigger stats.string matrix that will be filled
+            # with appropriately spaced blanks and elemtents of the old
+            # matrix.  This code puts the stats in the left-most column
+            # that pertains to a given model
+            for(i in rownames(stats.string)){
+                print(i)
+                temp<-stats.string[i,]
+                # take a single row of stats.string
+                temp<-rbind(temp, matrix(NA, length(cell.names)-1,
+                                         num.models))
+                # Add blank rows to this row
+                temp <- matrix(temp,1,length(cell.names)*num.models)
+                # Reshape this matrix to a row vector
+                new.stats.string[i,] <- temp
+                # Save the row vector
+            }
+            stats.string <- new.stats.string
         }
 
         ## catching use if empty ccl
@@ -311,7 +340,8 @@
             twostar <- paste(sig.sym[[2]],sep="")
             onestar <- paste(sig.sym[[1]],sep="")
             line.end <- '\n'
-            na.string <- ' '
+            na.string <- ''
+            quote.strings <- TRUE
         }
         # for TeX
         else if(file.type == 'txt' ) {
@@ -325,6 +355,7 @@
             onestar <- paste(sig.sym[[1]],sep="")
             line.end <- '\n'
             #caption <- paste(caption,line.end,sep="")
+            quote.strings <- FALSE
         }
         else{# For txt
             na.string <- str_pad('',col.width)
@@ -339,6 +370,7 @@
             twostar <- paste("\\sym{",sig.sym[[2]],"}",sep="")
             onestar <- paste("\\sym{",sig.sym[[1]],"}",sep="")
             line.end <- '\\\\\n'
+            quote.strings <- FALSE
         }
 
         ########## making stars and putting in matrix #### stars depend on p-values ##########
@@ -431,8 +463,8 @@
                         # make the unstacked multicolumn command for the
                         # indicator value
                         else indicator.strings[[i,j]] = str_pad(indicator.yes,
-                                                                padding,side='both')
-                        if(file.type == 'csv'){
+                                                               padding,side='both')
+                        if(file.type == 'csv' & unstack.cells){
 
                         }
                     } else{
@@ -450,6 +482,35 @@
                 }
             } 
         }
+        if(file.type == 'csv' & unstack.cells){
+            dummynames <- 1:(length(cell.names)*num.models)
+            # These names are the column names for the indicator variables
+            # with extra columns stuck in.  These column names are not
+            # printed, so they just have to match the dimensions
+
+            new.indicator.strings <-
+                matrix(NA,length(names(indicate)),length(model.names)*length(cell.names),dimnames=list(names(indicate),dummynames))
+            # Initialize a bigger indicator strings matrix that will be
+            # filled with appropriately spaced blanks and elemtents of the
+            # old indicator matrix.  This code puts the indicator.yes or
+            # indicator.no symbol in the left-most column that pertains to
+            # a given model
+            for(i in rownames(indicator.strings)){
+                temp<-indicator.strings[i,]
+                # take a single row of the indicator strings
+                temp<-rbind(temp, matrix(NA,
+                                                   length(cell.names)-1,
+                                                   num.models))
+                # Add blank rows to this row
+                temp <- matrix(temp,1,length(cell.names)*num.models)
+                # Reshape this matrix to a row vector
+                new.indicator.strings[i,] <- temp
+                # Save the row vector
+            }
+            indicator.strings <- new.indicator.strings
+            #rownames(indicator.strings) <- names(indicate)
+        }
+        # End work on indicators, begin work on row names for variable list
         if(unstack.cells) {
             renamed.var.list <-
                 unlist(lapply(renamed.var.list,str_pad,width=single.column.padding,side='right'))
@@ -527,10 +588,10 @@
         cat(toprule,file=filename)
         write.table(header.string,file=filename, append=TRUE,sep=delimiter,
                     eol=line.end, row.names = FALSE, col.names = FALSE,
-                    quote = FALSE, na=na.string)
+                    quote = quote.strings, na=na.string)
         write.table(model.name.string,file=filename, append=TRUE,sep=delimiter,
                     eol=line.end, row.names = FALSE, col.names = FALSE,
-                    quote = FALSE, na=na.string)
+                    quote = quote.strings, na=na.string)
         cat(midrule,file=filename, sep='',append=TRUE)
         currentWarning <- getOption('warn')
         options(warn=-1)
@@ -541,16 +602,18 @@
         # names.
         write.table(body.string,sep=delimiter,eol=line.end, na = na.string,
                     col.names = FALSE, row.names = table.rows, quote =
-                    FALSE,  append=TRUE, file=filename)
+                    quote.strings,  append=TRUE, file=filename)
         options(warn=currentWarning)
         if(!is.null(indicate)){
             write.table(indicator.strings,sep=delimiter,col.names = FALSE, quote
-                        = FALSE, file=filename,append=TRUE, row.names =
-            str_pad(dimnames(indicator.strings)[[1]],single.column.padding,side='right'),eol=line.end)
+                        = quote.strings, file=filename,append=TRUE, row.names =
+            str_pad(dimnames(indicator.strings)[[1]],single.column.padding,side='right'),eol=line.end,
+            na=na.string)
         }
         cat(midrule,file=filename, append=TRUE, sep='')
         write.table(stats.string,sep=delimiter,eol=line.end, na =
                     na.string, row.names =
-        str_pad(dimnames(stats.string)[[1]],single.column.padding,side='right'), col.names = FALSE, quote = FALSE,file=filename, append=TRUE)
+        str_pad(dimnames(stats.string)[[1]],single.column.padding,side='right'),
+        col.names = FALSE, quote = quote.strings,file=filename, append=TRUE)
         if(file.type=='tex') cat(bottomrule,file=filename, append=TRUE)
     } 

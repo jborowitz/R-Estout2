@@ -398,7 +398,8 @@
                     coefficient <- coef.func(ccl[['results',j]])[[k]]
                     se <- sqrt(diag(variance.matrix))[[k]]
                     tstat <- coefficient/se
-                    p <- 2*pt(-1*abs(tstat),res1[['df.residual']])
+                    #p <- 2*pt(-1*abs(tstat),res1[['df.residual']])
+                    p <- 2*pt(-1*abs(tstat),df.residual(ccl[['results',j]]))
                     # Calculate the statistics for inclusion in the cells
                     if ( p < sig.levels[3] ) {
                         # Begin logic that stars significant coefficients

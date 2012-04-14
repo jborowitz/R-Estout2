@@ -1,5 +1,5 @@
 `eststo2` <-
-function(x,stats=NULL){ # starting function "eststo"
+function(x,stats=NULL,name='ccl',index=NULL){ # starting function "eststo"
     # stats is a list from list(stat1=value,stat2=value)...  In the
     # default, it will go with the behavior that was already here.
     # x is a results object, which has the following fields defined.
@@ -10,7 +10,7 @@ function(x,stats=NULL){ # starting function "eststo"
     # variance covariance matrix will have to be specified manually during
     # esttab
 
-if(exists("ccl",where=1)){
+if(exists("ccl",where=globalenv())){
     old.results <<- ccl # access current results matrix into old.results 
         model.name <- paste('model',length(old.results[1,])+1,sep='')
     # Name the model 'modeln'

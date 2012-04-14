@@ -1,5 +1,5 @@
 `eststo2` <-
-function(x,stats=NULL,nameString='ccl',index=NULL){ # starting function "eststo"
+function(x,stats=NULL,tableName='ccl',index=NULL){ # starting function "eststo"
     # stats is a list from list(stat1=value,stat2=value)...  In the
     # default, it will go with the behavior that was already here.
     # x is a results object, which has the following fields defined.
@@ -10,12 +10,12 @@ function(x,stats=NULL,nameString='ccl',index=NULL){ # starting function "eststo"
     # variance covariance matrix will have to be specified manually during
     # esttab
     #
-    # nameString is the name of the string where the results are stored.  It is
+    # tableName is the name of the string where the results are stored.  It is
     # the string which will be the name of the global variable which will be
     # created to store the models.
 
-name <- as.name(nameString)
-if(exists(nameString,where=globalenv())){
+name <- as.name(tableName)
+if(exists(tableName,where=globalenv())){
     old.results <<- eval(name) # access current results matrix into old.results 
         model.name <- paste('model',length(old.results[1,])+1,sep='')
     # Name the model 'modeln'
@@ -32,7 +32,7 @@ if(exists(nameString,where=globalenv())){
     these.results[['results',model.name]] <- x
     # Put x into these results
 
-    assign(x=nameString,value=cbind(old.results, these.results),envir=globalenv())
+    assign(x=tableName,value=cbind(old.results, these.results),envir=globalenv())
     #Save the results into the global environment
 
     return(eval(name))
@@ -55,7 +55,7 @@ else{
     these.results[['results',model.name]] <- x
     
     # Save the first results to the global environment
-    assign(x=nameString,value= these.results,envir=globalenv())
+    assign(x=tableName,value= these.results,envir=globalenv())
     return(eval(name))
 }
 

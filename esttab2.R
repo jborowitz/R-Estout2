@@ -7,7 +7,7 @@
              booktabs=FALSE, var.rename=NULL, keep=NULL, se.func=vcov,
              coef.func=coef, col.width=24, col.headers=NULL,
              unstack.cells=FALSE,N=TRUE,R2=TRUE, indicate=NULL, drop=NULL,
-             headlines=FALSE, footlines=FALSE, storeage.table='ccl'){
+             headlines=FALSE, footlines=FALSE, tableName='ccl'){
         library('stringr')
 
         # coef.func and se.fun are function names that can be passed in order
@@ -123,7 +123,7 @@
         # Sanitize inputs for var.rename and indicate.  TODO: try to find a
         # way to keep the sorting of the indicate variables.  I think the
         # current method might get rid of sorting.
-        ccl <<- eval(as.name(storeage.table))
+        ccl <<- eval(as.name(tableName))
         # Grab the global results element.
         num.models <- length(ccl[1,])
         model.names <- dimnames(ccl)[[2]]

@@ -1,6 +1,6 @@
 `estclear` <-
-function(tn='ccl'){
-    assign(x=tn,value=NULL,envir=globalenv())
+function(tableName='ccl'){
+    assign(x=tableName,value=NULL,envir=globalenv())
     return(1)
 }
 

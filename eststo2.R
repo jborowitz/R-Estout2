@@ -15,7 +15,7 @@ function(x,stats=NULL,nameString='ccl',index=NULL){ # starting function "eststo"
     # created to store the models.
 
 name <- as.name(nameString)
-if(exists(toString(name),where=globalenv())){
+if(exists(nameString,where=globalenv())){
     old.results <<- eval(name) # access current results matrix into old.results 
         model.name <- paste('model',length(old.results[1,])+1,sep='')
     # Name the model 'modeln'
@@ -31,11 +31,32 @@ if(exists(toString(name),where=globalenv())){
 
     these.results[['results',model.name]] <- x
     # Put x into these results
-    return(ccl <<-cbind(old.results,these.results))
+
+    assign(x=nameString,value=cbind(old.results, these.results),envir=globalenv())
+    #Save the results into the global environment
+
+    return(eval(name))
 
 }  # grabbing existing list
 else{
-    print("Something bad is happening with the ccl object")
+    #This is the first model and so doesn't need to be appended
+    model.name <- 'model1'
+    # Name the first model 'model1'
+
+    these.results<- matrix(list(),2,1,dimnames =
+                           list(c('stats','results'),c(model.name)))
+    # Make a new matrix of results for this model, called 'these.results'
+
+    if(!is.null(stats)) these.results[['stats',model.name]] <- stats
+    else these.results[['stats',model.name]] <- list()
+    # If stats are passed to this model, then put them into the stats
+    # object
+
+    these.results[['results',model.name]] <- x
+    
+    # Save the first results to the global environment
+    assign(x=nameString,value= these.results,envir=globalenv())
+    return(eval(name))
 }
 
 } # eststo-end

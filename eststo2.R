@@ -17,8 +17,11 @@ function(x,stats=NULL,tableName='ccl',index=NULL){ # starting function "eststo"
 name <- as.name(tableName)
 if(exists(tableName,where=globalenv())){
     old.results <<- eval(name) # access current results matrix into old.results 
-        model.name <- paste('model',length(old.results[1,])+1,sep='')
+        #model.name <- paste('model',length(old.results[1,])+1,sep='')
     # Name the model 'modeln'
+
+    if (is.null(index)) model.name <- paste('model',length(old.results[1,])+1,sep='')
+    else model.name <- paste('model',index,sep='')
 
     these.results<- matrix(list(),2,1,dimnames =
                            list(c('stats','results'),c(model.name)))
@@ -40,7 +43,9 @@ if(exists(tableName,where=globalenv())){
 }  # grabbing existing list
 else{
     #This is the first model and so doesn't need to be appended
-    model.name <- 'model1'
+    #model.name <- 'model1'
+    if (is.null(index)) model.name <- 'model1'
+    else model.name <- paste('model',index,sep='')
     # Name the first model 'model1'
 
     these.results<- matrix(list(),2,1,dimnames =

@@ -126,7 +126,7 @@
         ccl <<- eval(as.name(tableName))
         # Grab the global results element.
         num.models <- length(ccl[1,])
-        model.names <- dimnames(ccl)[[2]]
+        model.names <- sort(dimnames(ccl)[[2]])
         var.list <- NULL
         for(i in model.names) var.list<- union(var.list,names(coef.func(ccl[['results',i]])))
         # For each model, add the list of independent variables to the
